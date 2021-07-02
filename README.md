@@ -1,2 +1,1 @@
-# projects-R-1
-Visualizing COVID-19
+# portfolio projects of mine
