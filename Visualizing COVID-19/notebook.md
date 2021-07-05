@@ -21,17 +21,6 @@ confirmed_cases_worldwide <- read_csv("datasets/confirmed_cases_worldwide.csv")
 confirmed_cases_worldwide
 ```
 
-    
-    [36m──[39m [1m[1mColumn specification[1m[22m [36m────────────────────────────────────────────────────────[39m
-    cols(
-      date = [34mcol_date(format = "")[39m,
-      cum_cases = [32mcol_double()[39m
-    )
-    
-    
-
-
-
 <table class="dataframe">
 <caption>A spec_tbl_df: 56 × 2</caption>
 <thead>
