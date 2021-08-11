@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="UTF-8"?><sqlb_project><db path="C:/Users/Admin/Downloads/sakila.db" readonly="0" foreign_keys="1" case_sensitive_like="0" temp_store="0" wal_autocheckpoint="1000" synchronous="2"/><attached/><window><main_tabs open="query structure browser pragmas" current="0"/></window><tab_structure><column_width id="0" width="300"/><column_width id="1" width="0"/><column_width id="2" width="125"/><column_width id="3" width="8574"/><column_width id="4" width="0"/><expanded_item id="0" parent="1"/><expanded_item id="1" parent="1"/><expanded_item id="2" parent="1"/><expanded_item id="3" parent="1"/></tab_structure><tab_browse><current_table name="4,5:mainactor"/><default_encoding codec=""/><browse_table_settings><table schema="main" name="actor" show_row_id="0" encoding="" plot_x_axis="" unlock_view_pk="_rowid_"><sort/><column_widths><column index="1" value="81"/><column index="2" value="117"/><column index="3" value="127"/><column index="4" value="162"/></column_widths><filter_values/><conditional_formats/><row_id_formats/><display_formats/><hidden_columns/><plot_y_axes/><global_filter/></table></browse_table_settings></tab_browse><tab_sql><sql name="SQL 1">
+---how many records do artor and film contain?---
+---Answer 200 and 1000 respectively---
+SELECT *
+FROM actor;
+
+SELECT *
+FROM film;
+
+--- Does postal_code in address has NULL ? ---
+--- Yes, 4 NULL ---
+SELECT *
+FROM address
+WHERE postal_code IS NULL;
+
+---Find Actors' names start with P----
+SELECT first_name
+FROM actor
+WHERE first_name LIKE 'P%';
+
+--- Find Actors' names start with P or A---
+SELECT first_name
+FROM actor
+WHERE first_name LIKE 'P%' OR first_name LIKE 'A%';
+
+--- Actors who play the most film (top10)---
+SELECT a.actor_id, a.first_name, a.last_name, COUNT(a.actor_id) AS number_of_plays
+FROM actor as a
+INNER JOIN film_actor as fa
+ON a.actor_id = fa.actor_id
+GROUP BY a.actor_id
+ORDER BY number_of_plays DESC
+LIMIT 10;
+
+---What is the distinct values in Rating---
+SELECT DISTINCT(rating)
+FROM film;
+
+--- What is the cpercent of R in film---
+SELECT rating,
+n,
+n/CAST(totaln AS real) AS ratingPercent
+FROM (SELECT
+		rating,
+		COUNT(*) AS n,
+		(SELECT COUNT(*) FROM film) AS totaln
+		FROM film
+		GROUP BY rating
+	)
+	ORDER BY n DESC;
+
+--- Create emails for all actors (firstname.lastname@sakila.com)----
+SELECT first_name, last_name, LOWER(first_name ||'.'|| last_name)||'.'||'@sakila.com'AS email
+FROM actor
+
+--- Adjust customer's name to the proper format---
+SELECT SUBSTR(first_name, 1, 1) || LOWER(SUBSTR(first_name, 2)) AS first_name,
+	SUBSTR(last_name, 1,1) || LOWER(SUBSTR(last_name, 2)) AS last_name
+FROM customer;
+
+---Exract Customers' first name, last name, address and city who live in Japan---
+SELECT customer.first_name, customer.last_name, address.address, city.city, country.country
+FROM customer
+INNER JOIN address
+ON customer.address_id = address.address_id
+INNER JOIN city
+ON address.city_id = city.city_id
+INNER JOIN country
+ON city.country_id = country.country_id
+WHERE country.country = 'Japan'
+
+--- Extract list of comedy film that have PG rating---
+SELECT title, c.name AS genre, f.rating
+FROM film f
+INNER JOIN film_category fc
+ON f.film_id = fc.film_id
+INNER JOIN category c
+ON fc.category_id = c.category_id
+WHERE f.rating = 'PG' AND genre = 'Comedy';
+
+--- Which branch has the highest income from movie renting ---
+SELECT store.store_id, SUM(payment.amount) AS income
+FROM store
+INNER JOIN staff
+ON store.store_id = staff.store_id
+INNER JOIN payment
+ON staff.staff_id = payment.staff_id
+GROUP BY store.store_id
+ORDER BY income DESC;
+
+---Monthly Income Compare of both branches on 2005---
+SELECT store.store_id, 
+		SUM(payment.amount) AS income, 
+		strftime('%m', payment_date) AS month,
+		strftime('%Y', payment_date) AS year
+FROM store
+INNER JOIN staff
+ON store.store_id = staff.store_id
+INNER JOIN payment
+ON staff.staff_id = payment.staff_id
+GROUP BY store.store_id, month
+HAVING year = '2005'
+ORDER BY store.store_id, month
+
+--- Extract name, addres and postalcode of curtomers who haven't return movie back---
+SELECT DISTINCT c.first_name, c.last_name, a.address, a.postal_code, r.return_date
+FROM customer c
+INNER JOIN address a
+ON c.address_id = a.address_id
+INNER JOIN rental r
+ON c.customer_id = r.customer_id
+WHERE r.return_date IS NULL
+ORDER BY c.first_name;
+
+--- Extract list of movie, which are available at either store 1 or store 2 but not both---
+SELECT DISTINCT
+	release_year,
+	title,
+	rating,
+	store_id
+FROM film A
+JOIN inventory B ON A.film_id = B.film_id
+WHERE A.film_id IN 
+	(SELECT film_id
+	FROM inventory
+	GROUP BY film_id
+	HAVING COUNT(DISTINCT store_id) = 1
+	)
+ORDER BY title;
+
+--- Top 10 Movies by renting income---
+SELECT A.title, A.release_year, A.rating, SUM(D.amount) AS income
+FROM film A
+INNER JOIN inventory B
+ON A.film_id = B.film_id
+INNER JOIN rental C
+ON B.inventory_id = C.inventory_id
+INNER JOIN payment D
+ON C.rental_id = D.rental_id
+GROUP BY A.title
+ORDER BY income DESC
+LIMIT 10;
+
+--- Top 10 Actors, whose movies have the lowest renting income---
+SELECT A.first_name, A.last_name, SUM(F.amount) AS income
+FROM actor A
+INNER JOIN film_actor B
+ON A.actor_id = B.actor_id
+INNER JOIN film C
+ON B.film_id = C.film_id
+INNER JOIN inventory D
+ON C.film_id = D.film_id
+INNER JOIN rental E
+ON D.inventory_id = E.inventory_id
+INNER JOIN payment F
+ON E.rental_id = F.rental_id
+GROUP BY A.actor_id
+ORDER BY income
+LIMIT 10;
+
+--- How many days each film have been rent ----
+SELECT C.rental_id, A.title, CAST((JulianDay(c.return_date) - JulianDay(c.rental_date)) AS INTEGER) days
+FROM film A
+INNER JOIN inventory B
+ON A.film_id = B.film_id
+INNER JOIN rental C
+ON B.inventory_id = C.inventory_id
+WHERE c.return_date IS NOT NULL
+ORDER BY days DESC
+
+--- Cumulative sum of income of each month---
+SELECT
+	payment_date,
+	ROUND(amount,2) amount,
+	ROUND(SUM(amount) OVER(ORDER BY payment_date),2) AS rollAmt
+FROM(
+SELECT strftime('%Y-%m', payment_date) payment_date,
+	SUM(amount) as amount
+FROM payment
+GROUP BY 1);
+
+</sql><current_tab id="0"/></tab_sql></sqlb_project>
